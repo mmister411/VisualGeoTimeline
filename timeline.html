@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Timeline and Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    #map {
+      height: 400px;
+      margin-bottom: 20px;
+    }
+
+    #timeline {
+      list-style: none;
+      padding: 0;
+    }
+
+    .event {
+      display: flex;
+      align-items: center;
+    }
+
+    .event input {
+      margin-right: 10px;
+    }
+
+    .event button {
+      margin-left: 10px;
+    }
+
+    .event-bar {
+      height: 20px;
+      background-color: #007bff;
+      margin-bottom: 10px;
+    }
+
+    .event-name {
+      color: #fff;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<form id="eventForm">
+  <input
+    type="text"
+    id="eventName"
+    placeholder="Event Name"
+    required
+  />
+  <input
+    type="text"
+    id="eventPlace"
+    placeholder="Event Place"
+    required
+  />
+  <input
+    type="text"
+    id="eventTime"
+    placeholder="Event Time"
+    required
+  />
+  <button type="submit">Add Event</button>
+</form>
+<ul id="timeline"></ul>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+  // Leaflet map setup
+  var map = L.map("map").setView([0, 0], 2);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+  }).addTo(map);
+
+  // Initialize array to store events
+  var events = [];
+
+  // Function to add event to the timeline and map
+  function addEvent(event) {
+    events.push(event);
+
+    var eventItem = document.createElement("li");
+    eventItem.classList.add("event");
+
+    var eventBar = document.createElement("div");
+    eventBar.classList.add("event-bar");
+
+    var eventName = document.createElement("div");
+    eventName.classList.add("event-name");
+    eventName.textContent = event.name;
+
+    eventBar.appendChild(eventName);
+    eventItem.appendChild(eventBar);
+
+    var deleteButton = document.createElement("button");
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", deleteEvent);
+    eventItem.appendChild(deleteButton);
+
+    var timeline = document.getElementById("timeline");
+    timeline.appendChild(eventItem);
+
+    // Geocoding with OpenStreetMap Nominatim
+    var url = `https://nominatim.openstreetmap.org/search?q=${event.place}&format=json&limit=1`;
+    fetch(url)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.length > 0) {
+          var marker = L.marker([data[0].lat, data[0].lon]).addTo(map);
+          marker.bindPopup(event.name).openPopup();
+        }
+      })
+      .catch((error) => {
+        console.log('Error occurred during geocoding:', error);
+      });
+  }
+
+  // Function to delete event from the timeline and map
+  function deleteEvent(event) {
+    var eventName = event.target.parentNode.querySelector('.event-name').textContent;
+    var eventIndex = events.findIndex((ev) => ev.name === eventName);
+    if (eventIndex > -1) {
+      events.splice(eventIndex, 1);
+    }
+    event.target.parentNode.remove();
+    map.eachLayer(function (layer) {
+      if (layer instanceof L.Marker && layer._popup._content === eventName) {
+        map.removeLayer(layer);
+      }
+    });
+  }
+
+  // Event listener for form submission
+  document.getElementById("eventForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    var eventName = document.getElementById("eventName").value;
+    var eventPlace = document.getElementById("eventPlace").value;
+    var eventTime = document.getElementById("eventTime").value;
+
+    var newEvent = {
+      name: eventName,
+      place: eventPlace,
+      time: eventTime,
+    };
+
+    addEvent(newEvent);
+
+    document.getElementById("eventName").value = "";
+    document.getElementById("eventPlace").value = "";
+    document.getElementById("eventTime").value = "";
+  });
+</script>
+</body>
+</html>
